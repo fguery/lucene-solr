@@ -59,7 +59,12 @@ public class QueryCommand {
     }
     return this;
   }
-  
+
+  private ReplicaMark replicaMark;
+  public ReplicaMark getReplicaMark() { return replicaMark; }
+  public QueryCommand setReplicaMark(ReplicaMark replicaMark) { this.replicaMark = replicaMark; }
+
+
   public Query getQuery() {
     return query;
   }

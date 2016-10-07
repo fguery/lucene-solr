@@ -1675,6 +1675,7 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable, SolrI
     }
 
     final CursorMark lastCursorMark = qc.getCursorMark();
+    final ReplicaMark lastReplicaMark = qc.getReplicaMark();
 
     // if we have a cursor, then we have a sort that at minimum involves uniqueKey..
     // so we must have a TopFieldDocs containing FieldDoc[]
@@ -1693,6 +1694,10 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable, SolrI
       CursorMark nextCursorMark = lastCursorMark.createNext(lastFields);
       assert null != nextCursorMark : "null nextCursorMark";
       qr.setNextCursorMark(nextCursorMark);
+      ReplicaMark usedReplicaMark = lastReplicaMark.createNext("aa");
+      assert null != usedReplicaMark : "null usedReplicaMark";
+      qr.setUsedReplicaMark(usedReplicaMark);
+
     }
   }
 

@@ -436,7 +436,8 @@ public class ResponseBuilder
             .setLen(getSortSpec().getCount())
             .setFlags(getFieldFlags())
             .setNeedDocSet(isNeedDocSet())
-            .setCursorMark(getCursorMark());
+            .setCursorMark(getCursorMark())
+            .setReplicaMark(getReplicaMark());
     return cmd;
   }
 
