@@ -1694,6 +1694,8 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable, SolrI
       CursorMark nextCursorMark = lastCursorMark.createNext(lastFields);
       assert null != nextCursorMark : "null nextCursorMark";
       qr.setNextCursorMark(nextCursorMark);
+
+      // TODO: (oliver kilian) this is just to get the unit test work, it is not the right position. move this!
       ReplicaMark usedReplicaMark = lastReplicaMark.createNext("aa");
       assert null != usedReplicaMark : "null usedReplicaMark";
       qr.setUsedReplicaMark(usedReplicaMark);

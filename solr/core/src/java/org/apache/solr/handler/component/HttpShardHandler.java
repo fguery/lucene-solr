@@ -134,6 +134,7 @@ public class HttpShardHandler extends ShardHandler {
    * If all nodes prefer local-cores then a bad/heavily-loaded node will receive less requests from healthy nodes.
    * This will help prevent a distributed deadlock or timeouts in all the healthy nodes due to one bad node.
    */
+  // TODO: (oliver kilian) adapt this for preferedReplica
   private void preferCurrentHostForDistributedReq(final String currentHostAddress, final List<String> urls) {
     if (log.isDebugEnabled())
       log.debug("Trying to prefer local shard on {} among the urls: {}",
@@ -161,7 +162,7 @@ public class HttpShardHandler extends ShardHandler {
     // do this outside of the callable for thread safety reasons
     final List<String> urls = getURLs(shard, preferredHostAddress, preferredHostAddresses);
 
-    //TODO: add our
+    //TODO: add staff for replicaMark
 
     Callable<ShardResponse> task = () -> {
 
