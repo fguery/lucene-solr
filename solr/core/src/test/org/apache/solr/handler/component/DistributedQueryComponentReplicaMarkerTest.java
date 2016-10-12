@@ -17,15 +17,14 @@
 package org.apache.solr.handler.component;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
 import org.apache.solr.client.solrj.request.UpdateRequest;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.cloud.SolrCloudTestCase;
-import org.apache.solr.common.cloud.DocCollection;
 import org.apache.solr.common.params.CursorMarkParams;
+
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -40,7 +39,7 @@ import org.junit.Test;
  */
 public class DistributedQueryComponentReplicaMarkerTest extends SolrCloudTestCase {
 
-  private static final String COLLECTION = "optimize";
+  private static final String COLLECTION = "choice";
   private static final String id = "id";
 
   private static final int numShards = 3;
@@ -49,16 +48,13 @@ public class DistributedQueryComponentReplicaMarkerTest extends SolrCloudTestCas
 
   @BeforeClass
   public static void setupCluster() throws Exception {
-    configureCluster(numShards*numReplicas/maxShardsPerNode)
-        .withSolrXml(TEST_PATH().resolve("solr-trackingshardhandler.xml"))
+    configureCluster((numShards*numReplicas + (maxShardsPerNode-1))/maxShardsPerNode)
         .addConfig("conf", configset("cloud-dynamic"))
         .configure();
 
     CollectionAdminRequest.createCollection(COLLECTION, "conf", numShards, numReplicas)
         .setMaxShardsPerNode(maxShardsPerNode)
-        .processAndWait(cluster.getSolrClient(), DEFAULT_TIMEOUT);
-    cluster.getSolrClient().waitForState(COLLECTION, DEFAULT_TIMEOUT, TimeUnit.SECONDS,
-        (n, c) -> DocCollection.isFullyActive(n, c, numShards, numReplicas));
+        .process(cluster.getSolrClient());
 
     new UpdateRequest()
         .add(sdoc(id, "1", "text", "a", "test_sS", "21", "payload", ByteBuffer.wrap(new byte[]{0x12, 0x62, 0x15})))
@@ -74,8 +70,6 @@ public class DistributedQueryComponentReplicaMarkerTest extends SolrCloudTestCas
         .add(sdoc(id, "11", "text", "d", "test_sS", "31", "payload", ByteBuffer.wrap(new byte[]{(byte) 0xff, (byte) 0xaf, (byte) 0x9c}))) // 13
         .add(sdoc(id, "12", "text", "d", "test_sS", "32", "payload", ByteBuffer.wrap(new byte[]{0x34, (byte) 0xdd, 0x4d})))             //  7
         .add(sdoc(id, "13", "text", "d", "test_sS", "33", "payload", ByteBuffer.wrap(new byte[]{(byte) 0x80, 0x11, 0x33})))             // 12
-        // SOLR-6545, wild card field list
-        .add(sdoc(id, "19", "text", "d", "cat_a_sS", "1", "dynamic_s", "2", "payload", ByteBuffer.wrap(new byte[]{(byte) 0x80, 0x11, 0x34})))
         .commit(cluster.getSolrClient(), COLLECTION);
 
   }
@@ -86,10 +80,10 @@ public class DistributedQueryComponentReplicaMarkerTest extends SolrCloudTestCas
     QueryResponse rsp;
     rsp = cluster.getSolrClient().query(COLLECTION,
         new SolrQuery("q", "*:*", "fl", "id,test_sS,score", "sort", "payload asc", "rows", "20"));
-    assertFieldValues(rsp.getResults(), id, "7", "1", "6", "4", "2", "10", "12", "3", "5", "9", "8", "13", "19", "11");
-    assertFieldValues(rsp.getResults(), "test_sS", "27", "21", "26", "24", "22", "30", "32", "23", "25", "29", "28", "33", null, "31");
+    assertFieldValues(rsp.getResults(), id, "7", "1", "6", "4", "2", "10", "12", "3", "5", "9", "8", "13", "11");
+    assertFieldValues(rsp.getResults(), "test_sS", "27", "21", "26", "24", "22", "30", "32", "23", "25", "29", "28", "33", "31");
     rsp = cluster.getSolrClient().query(COLLECTION, new SolrQuery("q", "*:*", "fl", "id,score", "sort", "payload desc", "rows", "20"));
-    assertFieldValues(rsp.getResults(), id, "11", "19", "13", "8", "9", "5", "3", "12", "10", "2", "4", "6", "1", "7");
+    assertFieldValues(rsp.getResults(), id, "11", "13", "8", "9", "5", "3", "12", "10", "2", "4", "6", "1", "7");
 
   }
 
@@ -99,7 +93,7 @@ public class DistributedQueryComponentReplicaMarkerTest extends SolrCloudTestCas
     
     rsp = cluster.getSolrClient().query(COLLECTION,
         new SolrQuery("q", "*:*", "fl", id+",score", "sort", id+" asc", "rows", "5"));
-    assertNull(rsp.getUsedReplicaMark());
+    assertNull("unexpectedly found replica mark in response: "+rsp, rsp.getUsedReplicaMark());
   }
   
   @Test

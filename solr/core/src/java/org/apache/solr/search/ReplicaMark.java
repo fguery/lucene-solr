@@ -16,9 +16,6 @@
  */
 package org.apache.solr.search;
 
-import java.util.List;
-
-
 /**
  * TODO
  */
@@ -35,9 +32,7 @@ public final class ReplicaMark {
 
 
   /**
-   * Generates an new CursorMark bound for use with the same {@link SortSpec}
-   * as the current CursorMark but using the new SortValues.
-   * @param nextSortValues
+   * TODO
    */
   public ReplicaMark createNext(String nextSortValues) {
     final ReplicaMark next = new ReplicaMark(null);
