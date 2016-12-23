@@ -24,20 +24,28 @@ import org.apache.solr.client.solrj.impl.HttpClientUtil;
 import org.apache.solr.client.solrj.impl.LBHttpSolrClient;
 import org.apache.solr.client.solrj.impl.LBHttpSolrClient.Builder;
 import org.apache.solr.client.solrj.request.QueryRequest;
+import org.apache.solr.cloud.ZkController;
+import org.apache.solr.common.cloud.Replica;
+import org.apache.solr.common.params.CommonParams;
+import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
+import org.apache.solr.common.params.SolrParams;
 import org.apache.solr.common.util.ExecutorUtil;
 import org.apache.solr.common.util.NamedList;
 import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.common.util.URLUtil;
+import org.apache.solr.core.CoreDescriptor;
 import org.apache.solr.core.PluginInfo;
 import org.apache.solr.update.UpdateShardHandlerConfig;
+import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
-import java.util.Collections;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -83,6 +91,8 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
   private String scheme = null;
 
   private final Random r = new Random();
+
+  private final ReplicaListTransformer shufflingReplicaListTransformer = new ShufflingReplicaListTransformer(r);
 
   // URL scheme to be used in distributed search.
   static final String INIT_URL_SCHEME = "urlScheme";
@@ -227,12 +237,12 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
   }
 
   /**
-   * Creates a randomized list of urls for the given shard.
+   * Creates a list of urls for the given shard.
    *
    * @param shard the urls for the shard, separated by '|'
    * @return A list of valid urls (including protocol) that are replicas for the shard
    */
-  public List<String> makeURLList(String shard) {
+  public List<String> buildURLList(String shard) {
     List<String> urls = StrUtils.splitSmart(shard, "|", true);
 
     // convert shard to URL
@@ -240,15 +250,87 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
       urls.set(i, buildUrl(urls.get(i)));
     }
 
-    //
-    // Shuffle the list instead of use round-robin by default.
-    // This prevents accidental synchronization where multiple shards could get in sync
-    // and query the same replica at the same time.
-    //
-    if (urls.size() > 1)
-      Collections.shuffle(urls, r);
-
     return urls;
+  }
+
+  /**
+   * A distributed request is made via {@link LBHttpSolrClient} to the first live server in the URL list.
+   * This means it is just as likely to choose current host as any of the other hosts.
+   * This function makes sure that the cores of current host are always put first in the URL list.
+   * If all nodes prefer local-cores then a bad/heavily-loaded node will receive less requests from healthy nodes.
+   * This will help prevent a distributed deadlock or timeouts in all the healthy nodes due to one bad node.
+   */
+  private class IsOnPreferredHostComparator implements Comparator<Object> {
+    final private String preferredHostAddress;
+    public IsOnPreferredHostComparator(String preferredHostAddress) {
+      this.preferredHostAddress = preferredHostAddress;
+    }
+    @Override
+    public int compare(Object left, Object right) {
+      final boolean lhs = hasPrefix(objectToString(left));
+      final boolean rhs = hasPrefix(objectToString(right));
+      if (lhs != rhs) {
+        if (lhs) {
+          return -1;
+        } else {
+          return +1;
+        }
+      } else {
+        return 0;
+      }
+    }
+    private String objectToString(Object o) {
+      final String s;
+      if (o instanceof String) {
+        s = (String)o;
+      }
+      else if (o instanceof Replica) {
+        s = ((Replica)o).getCoreUrl();
+      } else {
+        s = null;
+      }
+      return s;
+    }
+    private boolean hasPrefix(String s) {
+      return s != null && s.startsWith(preferredHostAddress);
+    }
+  }
+  ReplicaListTransformer getReplicaListTransformer(final SolrQueryRequest req)
+  {
+    final SolrParams params = req.getParams();
+
+    if (params.getBool(CommonParams.PREFER_LOCAL_SHARDS, false)) {
+      final CoreDescriptor coreDescriptor = req.getCore().getCoreDescriptor();
+      final ZkController zkController = coreDescriptor.getCoreContainer().getZkController();
+      final String preferredHostAddress = (zkController != null) ? zkController.getBaseUrl() : null;
+      if (preferredHostAddress == null) {
+        log.warn("Couldn't determine current host address to prefer local shards");
+      } else {
+        return new ShufflingReplicaListTransformer(r) {
+          @Override
+          public void transform(List<?> choices)
+          {
+            if (choices.size() > 1) {
+              super.transform(choices);
+              if (log.isDebugEnabled()) {
+                log.debug("Trying to prefer local shard on {} among the choices: {}",
+                    preferredHostAddress, Arrays.toString(choices.toArray()));
+              }
+              choices.sort(new IsOnPreferredHostComparator(preferredHostAddress));
+              if (log.isDebugEnabled()) {
+                log.debug("Applied local shard preference for choices: {}",
+                    Arrays.toString(choices.toArray()));
+              }
+            }
+          }
+        };
+      }
+    }
+
+    // String[] replicatMark = params.getParams(CursorMarkParams.REPLICA_MARK_PARAM);
+    // TODO
+
+    return shufflingReplicaListTransformer;
   }
 
   /**

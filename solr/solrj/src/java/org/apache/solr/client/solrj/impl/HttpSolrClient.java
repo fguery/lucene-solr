@@ -29,6 +29,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -47,6 +48,7 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.conn.HttpClientConnectionManager;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.InputStreamEntity;
@@ -110,6 +112,8 @@ public class HttpSolrClient extends SolrClient {
   public static final String AGENT = "Solr[" + HttpSolrClient.class.getName() + "] 1.0";
   
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
+  
+  static final Class<HttpSolrClient> cacheKey = HttpSolrClient.class;
   
   /**
    * The URL of the Solr server.
@@ -209,7 +213,23 @@ public class HttpSolrClient extends SolrClient {
     
     this.parser = parser;
   }
-  
+
+  /**
+   * The consturctor.
+   *
+   * @param baseURL The base url to communicate with the Solr server
+   * @param client Http client instance to use for communication
+   * @param parser Response parser instance to use to decode response from Solr server
+   * @param allowCompression Should compression be allowed ?
+   * @param invariantParams The parameters which should be included with every request.
+   */
+  protected HttpSolrClient(String baseURL, HttpClient client, ResponseParser parser, boolean allowCompression,
+      ModifiableSolrParams invariantParams) {
+    this(baseURL, client, parser, allowCompression);
+
+    this.invariantParams = invariantParams;
+  }
+
   public Set<String> getQueryParams() {
     return queryParams;
   }
@@ -508,7 +528,8 @@ public class HttpSolrClient extends SolrClient {
     boolean shouldClose = true;
     try {
       // Execute the method.
-      final HttpResponse response = httpClient.execute(method, HttpClientUtil.createNewHttpClientRequestContext());
+      HttpClientContext httpClientRequestContext = HttpClientUtil.createNewHttpClientRequestContext();
+      final HttpResponse response = httpClient.execute(method, httpClientRequestContext);
       int httpStatus = response.getStatusLine().getStatusCode();
       
       // Read the contents
@@ -752,7 +773,7 @@ public class HttpSolrClient extends SolrClient {
     private HttpClient httpClient;
     private ResponseParser responseParser;
     private boolean compression;
-    private String delegationToken;
+    private ModifiableSolrParams invariantParams = new ModifiableSolrParams();
 
     public Builder() {
       this.responseParser = new BinaryResponseParser();
@@ -774,7 +795,7 @@ public class HttpSolrClient extends SolrClient {
       this.baseSolrUrl = baseSolrUrl;
       this.responseParser = new BinaryResponseParser();
     }
-    
+
     /**
      * Provides a {@link HttpClient} for the builder to use when creating clients.
      */
@@ -782,7 +803,7 @@ public class HttpSolrClient extends SolrClient {
       this.httpClient = httpClient;
       return this;
     }
-    
+
     /**
      * Provides a {@link ResponseParser} for created clients to use when handling requests.
      */
@@ -790,7 +811,7 @@ public class HttpSolrClient extends SolrClient {
       this.responseParser = responseParser;
       return this;
     }
-    
+
     /**
      * Chooses whether created {@link HttpSolrClient}s use compression by default.
      */
@@ -803,8 +824,7 @@ public class HttpSolrClient extends SolrClient {
      * Use a delegation token for authenticating via the KerberosPlugin
      */
     public Builder withKerberosDelegationToken(String delegationToken) {
-      this.delegationToken = delegationToken;
-      return this;
+      return withDelegationToken(delegationToken);
     }
 
     @Deprecated
@@ -812,9 +832,26 @@ public class HttpSolrClient extends SolrClient {
      * @deprecated use {@link withKerberosDelegationToken(String)} instead
      */
     public Builder withDelegationToken(String delegationToken) {
-      this.delegationToken = delegationToken;
+      if (this.invariantParams.get(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_PARAM) != null) {
+        throw new IllegalStateException(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_PARAM + " is already defined!");
+      }
+      this.invariantParams.add(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_PARAM, delegationToken);
       return this;
     }
+
+    public Builder withInvariantParams(ModifiableSolrParams params) {
+      Objects.requireNonNull(params, "params must be non null!");
+
+      for (String name : params.getParameterNames()) {
+        if (this.invariantParams.get(name) != null) {
+          throw new IllegalStateException("parameter " + name + " is redefined.");
+        }
+      }
+
+      this.invariantParams.add(params);
+      return this;
+    }
+
     /**
      * Create a {@link HttpSolrClient} based on provided configuration.
      */
@@ -822,10 +859,11 @@ public class HttpSolrClient extends SolrClient {
       if (baseSolrUrl == null) {
         throw new IllegalArgumentException("Cannot create HttpSolrClient without a valid baseSolrUrl!");
       }
-      if (delegationToken == null) {
-        return new HttpSolrClient(baseSolrUrl, httpClient, responseParser, compression);
+
+      if (this.invariantParams.get(DelegationTokenHttpSolrClient.DELEGATION_TOKEN_PARAM) == null) {
+        return new HttpSolrClient(baseSolrUrl, httpClient, responseParser, compression, invariantParams);
       } else {
-        return new DelegationTokenHttpSolrClient(baseSolrUrl, httpClient, responseParser, compression, delegationToken);
+        return new DelegationTokenHttpSolrClient(baseSolrUrl, httpClient, responseParser, compression, invariantParams);
       }
     }
   }

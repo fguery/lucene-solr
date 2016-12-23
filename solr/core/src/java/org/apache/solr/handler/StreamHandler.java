@@ -19,11 +19,11 @@ package org.apache.solr.handler;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import org.apache.solr.client.solrj.io.ModelCache;
 import org.apache.solr.client.solrj.io.SolrClientCache;
@@ -50,9 +50,9 @@ import org.apache.solr.common.SolrException;
 import org.apache.solr.common.params.CommonParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.SolrParams;
-import org.apache.solr.common.util.NamedList;
 import org.apache.solr.core.CloseHook;
 import org.apache.solr.core.CoreContainer;
+import org.apache.solr.core.PluginInfo;
 import org.apache.solr.core.SolrCore;
 import org.apache.solr.request.SolrQueryRequest;
 import org.apache.solr.response.SolrQueryResponse;
@@ -69,7 +69,7 @@ public class StreamHandler extends RequestHandlerBase implements SolrCoreAware, 
   private StreamFactory streamFactory = new StreamFactory();
   private static final Logger logger = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
   private String coreName;
-  private Map<String, DaemonStream> daemons = new HashMap();
+  private Map<String, DaemonStream> daemons = Collections.synchronizedMap(new HashMap());
 
   @Override
   public PermissionNameProvider.Name getPermissionName(AuthorizationContext request) {
@@ -88,8 +88,8 @@ public class StreamHandler extends RequestHandlerBase implements SolrCoreAware, 
      *  </lst>
      * */
 
-    String defaultCollection = null;
-    String defaultZkhost     = null;
+    String defaultCollection;
+    String defaultZkhost;
     CoreContainer coreContainer = core.getCoreDescriptor().getCoreContainer();
     this.coreName = core.getName();
 
@@ -135,8 +135,10 @@ public class StreamHandler extends RequestHandlerBase implements SolrCoreAware, 
       .withFunctionName("gatherNodes", GatherNodesStream.class)
       .withFunctionName("select", SelectStream.class)
       .withFunctionName("scoreNodes", ScoreNodesStream.class)
-         .withFunctionName("model", ModelStream.class)
-         .withFunctionName("classify", ClassifyStream.class)
+      .withFunctionName("model", ModelStream.class)
+      .withFunctionName("classify", ClassifyStream.class)
+      .withFunctionName("fetch", FetchStream.class)
+      .withFunctionName("executor", ExecutorStream.class)
 
       // metrics
       .withFunctionName("min", MinMetric.class)
@@ -153,15 +155,12 @@ public class StreamHandler extends RequestHandlerBase implements SolrCoreAware, 
       .withFunctionName("group", GroupOperation.class)
       .withFunctionName("distinct", DistinctOperation.class);
 
-    // This pulls all the overrides and additions from the config
-    Object functionMappingsObj = initArgs.get("streamFunctions");
-    if(null != functionMappingsObj){
-      NamedList<?> functionMappings = (NamedList<?>)functionMappingsObj;
-      for(Entry<String,?> functionMapping : functionMappings){
-        Class<?> clazz = core.getResourceLoader().findClass((String)functionMapping.getValue(), Expressible.class);
-        streamFactory.withFunctionName(functionMapping.getKey(), clazz);
-      }
-    }
+     // This pulls all the overrides and additions from the config
+     List<PluginInfo> pluginInfos = core.getSolrConfig().getPluginInfos(Expressible.class.getName());
+     for (PluginInfo pluginInfo : pluginInfos) {
+       Class<? extends Expressible> clazz = core.getResourceLoader().findClass(pluginInfo.className, Expressible.class);
+       streamFactory.withFunctionName(pluginInfo.name, clazz);
+     }
         
     core.addCloseHook(new CloseHook() {
       @Override
@@ -186,7 +185,7 @@ public class StreamHandler extends RequestHandlerBase implements SolrCoreAware, 
       return;
     }
 
-    TupleStream tupleStream = null;
+    TupleStream tupleStream;
 
     try {
       tupleStream = this.streamFactory.constructStream(params.get("expr"));
@@ -219,6 +218,7 @@ public class StreamHandler extends RequestHandlerBase implements SolrCoreAware, 
       if(daemons.containsKey(daemonStream.getId())) {
         daemons.remove(daemonStream.getId()).close();
       }
+      daemonStream.setDaemons(daemons);
       daemonStream.open();  //This will start the deamonStream
       daemons.put(daemonStream.getId(), daemonStream);
       rsp.add("result-set", new DaemonResponseStream("Deamon:"+daemonStream.getId()+" started on "+coreName));

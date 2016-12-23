@@ -93,10 +93,6 @@ public class QueryUtils {
   public static void checkUnequal(Query q1, Query q2) {
     assertFalse(q1 + " equal to " + q2, q1.equals(q2));
     assertFalse(q2 + " equal to " + q1, q2.equals(q1));
-
-    // possible this test can fail on a hash collision... if that
-    // happens, please change test to use a different example.
-    assertTrue(q1.hashCode() != q2.hashCode());
   }
 
   /** deep check that explanations of a query 'score' correctly */
@@ -262,7 +258,7 @@ public class QueryUtils {
       }
 
       @Override
-      public PointValues getPointValues() {
+      public PointValues getPointValues(String fieldName) {
         return null;
       }
 

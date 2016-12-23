@@ -23,7 +23,6 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.util.NamedList;
-import org.apache.solr.search.ReplicaMark;
 import org.apache.solr.util.RTimer;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.request.SolrQueryRequest;
@@ -77,8 +76,6 @@ public class ResponseBuilder
   private GroupingSpecification groupingSpec;
   private CursorMark cursorMark;
   private CursorMark nextCursorMark;
-  private ReplicaMark replicaMark;
-  private ReplicaMark usedReplicaMark;
 
   private List<MergeStrategy> mergeStrategies;
   private RankQuery rankQuery;
@@ -139,8 +136,6 @@ public class ResponseBuilder
   public int shards_start = -1;
   public List<ShardRequest> outgoing;  // requests to be sent
   public List<ShardRequest> finished;  // requests that have received responses from all shards
-  public String preferredHostAddress = null;
-  public String[] preferredHostAddresses = null;
   public String shortCircuitedURL;
 
   public int getShardNum(String shard) {
@@ -387,8 +382,8 @@ public class ResponseBuilder
     return sortSpec;
   }
 
-  public void setSortSpec(SortSpec sort) {
-    this.sortSpec = sort;
+  public void setSortSpec(SortSpec sortSpec) {
+    this.sortSpec = sortSpec;
   }
 
   public GroupingSpecification getGroupingSpec() {
@@ -436,8 +431,7 @@ public class ResponseBuilder
             .setLen(getSortSpec().getCount())
             .setFlags(getFieldFlags())
             .setNeedDocSet(isNeedDocSet())
-            .setCursorMark(getCursorMark())
-            .setReplicaMark(getReplicaMark());
+            .setCursorMark(getCursorMark());
     return cmd;
   }
 
@@ -466,10 +460,6 @@ public class ResponseBuilder
       assert null != result.getNextCursorMark() : "using cursor but no next cursor set";
       this.setNextCursorMark(result.getNextCursorMark());
     }
-    if (null != replicaMark) {
-      assert null != result.getUsedReplicaMark() : "using replicaMark but no used replica set";
-      this.setUsedReplicaMark(result.getUsedReplicaMark());
-    }
   }
   
   public long getNumberDocumentsFound() {
@@ -492,12 +482,4 @@ public class ResponseBuilder
   public void setNextCursorMark(CursorMark nextCursorMark) {
     this.nextCursorMark = nextCursorMark;
   }
-
-
-  public ReplicaMark getReplicaMark() { return replicaMark; }
-  public void setReplicaMark(ReplicaMark replicaMark) { this.replicaMark = replicaMark; }
-
-  public ReplicaMark getUsedReplicaMark() { return usedReplicaMark; }
-  public void setUsedReplicaMark(ReplicaMark usedReplicaMark) { this.usedReplicaMark = usedReplicaMark; }
-
 }

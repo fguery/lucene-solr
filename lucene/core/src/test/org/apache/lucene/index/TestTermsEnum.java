@@ -170,7 +170,7 @@ public class TestTermsEnum extends LuceneTestCase {
   }
 
   private boolean accepts(CompiledAutomaton c, BytesRef b) {
-    int state = c.runAutomaton.getInitialState();
+    int state = 0;
     for(int idx=0;idx<b.length;idx++) {
       assertTrue(state != -1);
       state = c.runAutomaton.step(state, b.bytes[b.offset+idx] & 0xff);
@@ -291,7 +291,7 @@ public class TestTermsEnum extends LuceneTestCase {
           System.out.println("\nTEST: iter2=" + iter2 + " startTerm=" + (startTerm == null ? "<null>" : startTerm.utf8ToString()));
 
           if (startTerm != null) {
-            int state = c.runAutomaton.getInitialState();
+            int state = 0;
             for(int idx=0;idx<startTerm.length;idx++) {
               final int label = startTerm.bytes[startTerm.offset+idx] & 0xff;
               System.out.println("  state=" + state + " label=" + label);
@@ -997,5 +997,23 @@ public class TestTermsEnum extends LuceneTestCase {
       w.close();
     }
     dir.close();
+  }
+
+  // LUCENE-7576
+  public void testIntersectRegexp() throws Exception {
+    Directory d = newDirectory();
+    RandomIndexWriter w = new RandomIndexWriter(random(), d);
+    Document doc = new Document();
+    doc.add(newStringField("field", "foobar", Field.Store.NO));
+    w.addDocument(doc);
+    IndexReader r = w.getReader();
+    Fields fields = MultiFields.getFields(r);
+    CompiledAutomaton automaton = new CompiledAutomaton(new RegExp("do_not_match_anything").toAutomaton());
+    Terms terms = fields.terms("field");
+    String message = expectThrows(IllegalArgumentException.class, () -> {terms.intersect(automaton, null);}).getMessage();
+    assertEquals("please use CompiledAutomaton.getTermsEnum instead", message);
+    r.close();
+    w.close();
+    d.close();
   }
 }

@@ -242,7 +242,7 @@ public abstract class LeafReader extends IndexReader {
   /** Returns {@link NumericDocValues} for this field, or
    *  null if no numeric doc values were indexed for
    *  this field.  The returned instance should only be
-   *  used by a single thread.  This will never return null. */
+   *  used by a single thread. */
   public abstract NumericDocValues getNumericDocValues(String field) throws IOException;
 
   /** Returns {@link BinaryDocValues} for this field, or
@@ -295,8 +295,9 @@ public abstract class LeafReader extends IndexReader {
   public abstract Bits getLiveDocs();
 
   /** Returns the {@link PointValues} used for numeric or
-   *  spatial searches, or null if there are no point fields. */
-  public abstract PointValues getPointValues();
+   *  spatial searches for the given field, or null if there
+   *  are no point fields. */
+  public abstract PointValues getPointValues(String field) throws IOException;
 
   /**
    * Checks consistency of this reader.

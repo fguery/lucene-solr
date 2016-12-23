@@ -77,6 +77,8 @@ import org.apache.solr.common.util.Utils;
 import org.apache.solr.core.CloudConfig;
 import org.apache.solr.core.CoreContainer;
 import org.apache.solr.core.backup.repository.BackupRepository;
+import org.apache.solr.core.snapshots.CollectionSnapshotMetaData;
+import org.apache.solr.core.snapshots.SolrSnapshotManager;
 import org.apache.solr.handler.RequestHandlerBase;
 import org.apache.solr.handler.component.ShardHandler;
 import org.apache.solr.request.SolrQueryRequest;
@@ -344,9 +346,11 @@ public class CollectionsHandler extends RequestHandlerBase implements Permission
     try {
       String path = ZkStateReader.CONFIGS_ZKNODE + "/" + SYSTEM_COLL + "/schema.xml";
       byte[] data = IOUtils.toByteArray(Thread.currentThread().getContextClassLoader().getResourceAsStream("SystemCollectionSchema.xml"));
+      assert data != null && data.length > 0;
       cmdExecutor.ensureExists(path, data, CreateMode.PERSISTENT, zk);
       path = ZkStateReader.CONFIGS_ZKNODE + "/" + SYSTEM_COLL + "/solrconfig.xml";
       data = IOUtils.toByteArray(Thread.currentThread().getContextClassLoader().getResourceAsStream("SystemCollectionSolrConfig.xml"));
+      assert data != null && data.length > 0;
       cmdExecutor.ensureExists(path, data, CreateMode.PERSISTENT, zk);
     } catch (IOException e) {
       throw new SolrException(ErrorCode.SERVER_ERROR, e);
@@ -433,7 +437,7 @@ public class CollectionsHandler extends RequestHandlerBase implements Permission
       return null;
     }),
     CREATEALIAS_OP(CREATEALIAS, (req, rsp, h) -> {
-      final String aliasName = SolrIdentifierValidator.validateAliasName(req.getParams().get(NAME));
+      SolrIdentifierValidator.validateAliasName(req.getParams().get(NAME));
       return req.getParams().required().getAll(null, NAME, "collections");
     }),
     DELETEALIAS_OP(DELETEALIAS, (req, rsp, h) -> req.getParams().required().getAll(null, NAME)),
@@ -732,8 +736,14 @@ public class CollectionsHandler extends RequestHandlerBase implements Permission
         throw new SolrException(ErrorCode.SERVER_ERROR, "Failed to check the existance of " + uri + ". Is it valid?", ex);
       }
 
-      Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP);
+      String strategy = req.getParams().get(CollectionAdminParams.INDEX_BACKUP_STRATEGY, CollectionAdminParams.COPY_FILES_STRATEGY);
+      if (!CollectionAdminParams.INDEX_BACKUP_STRATEGIES.contains(strategy)) {
+        throw new SolrException(ErrorCode.BAD_REQUEST, "Unknown index backup strategy " + strategy);
+      }
+
+      Map<String, Object> params = req.getParams().getAll(null, NAME, COLLECTION_PROP, CoreAdminParams.COMMIT_NAME);
       params.put(CoreAdminParams.BACKUP_LOCATION, location);
+      params.put(CollectionAdminParams.INDEX_BACKUP_STRATEGY, strategy);
       return params;
     }),
     RESTORE_OP(RESTORE, (req, rsp, h) -> {
@@ -778,7 +788,57 @@ public class CollectionsHandler extends RequestHandlerBase implements Permission
       copyPropertiesWithPrefix(req.getParams(), params, COLL_PROP_PREFIX);
       return params;
     }),
+    CREATESNAPSHOT_OP(CREATESNAPSHOT, (req, rsp, h) -> {
+      req.getParams().required().check(COLLECTION_PROP, CoreAdminParams.COMMIT_NAME);
 
+      String collectionName = req.getParams().get(COLLECTION_PROP);
+      String commitName = req.getParams().get(CoreAdminParams.COMMIT_NAME);
+      ClusterState clusterState = h.coreContainer.getZkController().getClusterState();
+      if (!clusterState.hasCollection(collectionName)) {
+        throw new SolrException(ErrorCode.BAD_REQUEST, "Collection '" + collectionName + "' does not exist, no action taken.");
+      }
+
+      SolrZkClient client = h.coreContainer.getZkController().getZkClient();
+      if (SolrSnapshotManager.snapshotExists(client, collectionName, commitName)) {
+        throw new SolrException(ErrorCode.BAD_REQUEST,
+            "Snapshot with name '" + commitName + "' already exists for collection '"
+                + collectionName + "', no action taken.");
+      }
+
+      Map<String, Object> params = req.getParams().getAll(null, COLLECTION_PROP, CoreAdminParams.COMMIT_NAME);
+      return params;
+    }),
+    DELETESNAPSHOT_OP(DELETESNAPSHOT, (req, rsp, h) -> {
+      req.getParams().required().check(COLLECTION_PROP, CoreAdminParams.COMMIT_NAME);
+
+      String collectionName = req.getParams().get(COLLECTION_PROP);
+      ClusterState clusterState = h.coreContainer.getZkController().getClusterState();
+      if (!clusterState.hasCollection(collectionName)) {
+        throw new SolrException(ErrorCode.BAD_REQUEST, "Collection '" + collectionName + "' does not exist, no action taken.");
+      }
+
+      Map<String, Object> params = req.getParams().getAll(null, COLLECTION_PROP, CoreAdminParams.COMMIT_NAME);
+      return params;
+    }),
+    LISTSNAPSHOTS_OP(LISTSNAPSHOTS, (req, rsp, h) -> {
+      req.getParams().required().check(COLLECTION_PROP);
+
+      String collectionName = req.getParams().get(COLLECTION_PROP);
+      ClusterState clusterState = h.coreContainer.getZkController().getClusterState();
+      if (!clusterState.hasCollection(collectionName)) {
+        throw new SolrException(ErrorCode.BAD_REQUEST, "Collection '" + collectionName + "' does not exist, no action taken.");
+      }
+
+      NamedList<Object> snapshots = new NamedList<Object>();
+      SolrZkClient client = h.coreContainer.getZkController().getZkClient();
+      Collection<CollectionSnapshotMetaData> m = SolrSnapshotManager.listSnapshots(client, collectionName);
+      for (CollectionSnapshotMetaData meta : m) {
+        snapshots.add(meta.getName(), meta.toNamedList());
+      }
+
+      rsp.add(SolrSnapshotManager.SNAPSHOTS_INFO, snapshots);
+      return null;
+    }),
     REPLACENODE_OP(REPLACENODE, (req, rsp, h) -> req.getParams().required().getAll(req.getParams().getAll(null, "parallel"), "source", "target")),
     DELETENODE_OP(DELETENODE, (req, rsp, h) -> req.getParams().required().getAll(null, "node"));
     public final CollectionOp fun;
