@@ -299,7 +299,24 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
   {
     final SolrParams params = req.getParams();
 
-    if (params.getBool(CommonParams.PREFER_LOCAL_SHARDS, false)) {
+    final boolean preferLocalShards = params.getBool(CommonParams.PREFER_LOCAL_SHARDS, false);
+
+    String[] replicatMark = params.getParams(CursorMarkParams.REPLICA_MARK_PARAM);
+    if (replicatMark != null) {
+      if (preferLocalShards) {
+        log.warn("Due to presence of '"+CursorMarkParams.REPLICA_MARK_PARAM
+            +"' ignoring '"+CommonParams.PREFER_LOCAL_SHARDS+"' flag");
+      }
+      return new ShufflingReplicaListTransformer(r) {
+        @Override
+        public void transform(List<?> choices)
+        {
+          // TODO
+        }
+      };
+    }
+
+    if (preferLocalShards) {
       final CoreDescriptor coreDescriptor = req.getCore().getCoreDescriptor();
       final ZkController zkController = coreDescriptor.getCoreContainer().getZkController();
       final String preferredHostAddress = (zkController != null) ? zkController.getBaseUrl() : null;
@@ -326,9 +343,6 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
         };
       }
     }
-
-    // String[] replicatMark = params.getParams(CursorMarkParams.REPLICA_MARK_PARAM);
-    // TODO
 
     return shufflingReplicaListTransformer;
   }

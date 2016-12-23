@@ -48,7 +48,6 @@ import org.apache.solr.common.cloud.Replica;
 import org.apache.solr.common.cloud.Slice;
 import org.apache.solr.common.cloud.ZkCoreNodeProps;
 import org.apache.solr.common.params.CommonParams;
-import org.apache.solr.common.params.CursorMarkParams;
 import org.apache.solr.common.params.ModifiableSolrParams;
 import org.apache.solr.common.params.ShardParams;
 import org.apache.solr.common.params.SolrParams;
@@ -126,7 +125,6 @@ public class HttpShardHandler extends ShardHandler {
   @Override
   public void submit(final ShardRequest sreq, final String shard, final ModifiableSolrParams params) {
     // do this outside of the callable for thread safety reasons
-    //TODO: add staff for replicaMark
     final List<String> urls = getURLs(shard);
 
     Callable<ShardResponse> task = () -> {
@@ -273,7 +271,6 @@ public class HttpShardHandler extends ShardHandler {
   public void prepDistributed(ResponseBuilder rb) {
     final SolrQueryRequest req = rb.req;
     final SolrParams params = req.getParams();
-    // TODO: use our replica param
     final String shards = params.get(ShardParams.SHARDS);
 
     // since the cost of grabbing cloud state is still up in the air, we grab it only
