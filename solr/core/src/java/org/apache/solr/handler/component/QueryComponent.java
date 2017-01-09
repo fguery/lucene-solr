@@ -82,7 +82,7 @@ import org.apache.solr.search.QueryCommand;
 import org.apache.solr.search.QueryParsing;
 import org.apache.solr.search.QueryResult;
 import org.apache.solr.search.RankQuery;
-import org.apache.solr.search.ReplicaMark;
+import org.apache.solr.search.ReplicaSet;
 import org.apache.solr.search.ReturnFields;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.search.SolrReturnFields;
@@ -198,9 +198,9 @@ public class QueryComponent extends SearchComponent
 
       final String replicaStr = rb.req.getParams().get(CursorMarkParams.REPLICA_MARK_PARAM);
       if (null != replicaStr) {
-        final ReplicaMark replicaMark = new ReplicaMark(replicaStr);
-//        replicaMark.parseSerializedTotem(replicaStr);
-        rb.setReplicaMark(replicaMark);
+        final ReplicaSet replicaSet = new ReplicaSet(replicaStr);
+//        replicaSet.parseSerializedTotem(replicaStr);
+        rb.setReplicaSet(replicaSet);
       }
 
       String[] fqs = req.getParams().getParams(CommonParams.FQ);
@@ -550,9 +550,9 @@ public class QueryComponent extends SearchComponent
         rb.rsp.add(CursorMarkParams.CURSOR_MARK_NEXT,
                    rb.getNextCursorMark().getSerializedTotem());
       }
-      if (null != rb.getUsedReplicaMark()) {
+      if (null != rb.getUsedReplicaSet()) {
         rb.rsp.add(CursorMarkParams.REPLICA_MARK_USED,
-            rb.getUsedReplicaMark());
+            rb.getUsedReplicaSet());
       }
     }
 
@@ -847,9 +847,9 @@ public class QueryComponent extends SearchComponent
                  rb.getNextCursorMark().getSerializedTotem());
     }
 
-    if (null != rb.getUsedReplicaMark()) {
+    if (null != rb.getUsedReplicaSet()) {
       rb.rsp.add(CursorMarkParams.REPLICA_MARK_USED,
-          rb.getUsedReplicaMark());
+          rb.getUsedReplicaSet());
     }
   }
 
@@ -1155,7 +1155,7 @@ public class QueryComponent extends SearchComponent
 
       populateNextCursorMarkFromMergedShards(rb);
 
-      rb.setUsedReplicaMark(new ReplicaMark("a").createNext("a"));
+      rb.setUsedReplicaSet(new ReplicaSet("a").createNext("a"));
 
       if (partialResults) {
         if(rb.rsp.getResponseHeader().get(SolrQueryResponse.RESPONSE_HEADER_PARTIAL_RESULTS_KEY) == null) {

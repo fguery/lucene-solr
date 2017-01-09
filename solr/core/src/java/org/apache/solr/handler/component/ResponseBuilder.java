@@ -23,7 +23,7 @@ import org.apache.lucene.util.BytesRef;
 import org.apache.solr.common.SolrDocument;
 import org.apache.solr.common.SolrDocumentList;
 import org.apache.solr.common.util.NamedList;
-import org.apache.solr.search.ReplicaMark;
+import org.apache.solr.search.ReplicaSet;
 import org.apache.solr.util.RTimer;
 import org.apache.solr.common.util.SimpleOrderedMap;
 import org.apache.solr.request.SolrQueryRequest;
@@ -77,8 +77,8 @@ public class ResponseBuilder
   private GroupingSpecification groupingSpec;
   private CursorMark cursorMark;
   private CursorMark nextCursorMark;
-  private ReplicaMark replicaMark;
-  private ReplicaMark usedReplicaMark;
+  private ReplicaSet replicaSet;
+  private ReplicaSet usedReplicaSet;
 
   private List<MergeStrategy> mergeStrategies;
   private RankQuery rankQuery;
@@ -435,7 +435,7 @@ public class ResponseBuilder
             .setFlags(getFieldFlags())
             .setNeedDocSet(isNeedDocSet())
             .setCursorMark(getCursorMark())
-            .setReplicaMark(getReplicaMark());
+            .setReplicaSet(getReplicaSet());
     return cmd;
   }
 
@@ -464,9 +464,9 @@ public class ResponseBuilder
       assert null != result.getNextCursorMark() : "using cursor but no next cursor set";
       this.setNextCursorMark(result.getNextCursorMark());
     }
-    if (null != replicaMark) {
-      assert null != result.getUsedReplicaMark() : "using replicaMark but no used replica set";
-      this.setUsedReplicaMark(result.getUsedReplicaMark());
+    if (null != replicaSet) {
+      assert null != result.getUsedReplicaSet() : "using replicaSet but no used replica set";
+      this.setUsedReplicaSet(result.getUsedReplicaSet());
     }
   }
   
@@ -492,10 +492,10 @@ public class ResponseBuilder
   }
 
 
-  public ReplicaMark getReplicaMark() { return replicaMark; }
-  public void setReplicaMark(ReplicaMark replicaMark) { this.replicaMark = replicaMark; }
+  public ReplicaSet getReplicaSet() { return replicaSet; }
+  public void setReplicaSet(ReplicaSet replicaSet) { this.replicaSet = replicaSet; }
 
-  public ReplicaMark getUsedReplicaMark() { return usedReplicaMark; }
-  public void setUsedReplicaMark(ReplicaMark usedReplicaMark) { this.usedReplicaMark = usedReplicaMark; }
+  public ReplicaSet getUsedReplicaSet() { return usedReplicaSet; }
+  public void setUsedReplicaSet(ReplicaSet usedReplicaSet) { this.usedReplicaSet = usedReplicaSet; }
 
 }

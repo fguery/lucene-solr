@@ -60,10 +60,10 @@ public class QueryCommand {
     return this;
   }
 
-  private ReplicaMark replicaMark;
-  public ReplicaMark getReplicaMark() { return replicaMark; }
-  public QueryCommand setReplicaMark(ReplicaMark replicaMark) {
-    this.replicaMark = replicaMark;
+  private ReplicaSet replicaSet;
+  public ReplicaSet getReplicaSet() { return replicaSet; }
+  public QueryCommand setReplicaSet(ReplicaSet replicaSet) {
+    this.replicaSet = replicaSet;
     return this;
   }
 

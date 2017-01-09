@@ -25,7 +25,7 @@ public class QueryResult {
   private Boolean segmentTerminatedEarly;
   private DocListAndSet docListAndSet;
   private CursorMark nextCursorMark;
-  private ReplicaMark usedReplicaMark;
+  private ReplicaSet usedReplicaSet;
 
   public Object groupedResults; // TODO: currently for testing
   
@@ -83,6 +83,6 @@ public class QueryResult {
     return nextCursorMark;
   }
 
-  public ReplicaMark getUsedReplicaMark() { return usedReplicaMark; }
-  public void setUsedReplicaMark(ReplicaMark usedReplicaMark) { this.usedReplicaMark = usedReplicaMark; }
+  public ReplicaSet getUsedReplicaSet() { return usedReplicaSet; }
+  public void setUsedReplicaSet(ReplicaSet usedReplicaSet) { this.usedReplicaSet = usedReplicaSet; }
 }
