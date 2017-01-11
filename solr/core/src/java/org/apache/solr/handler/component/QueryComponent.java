@@ -196,7 +196,7 @@ public class QueryComponent extends SearchComponent
         rb.setCursorMark(cursorMark);
       }
 
-      final String replicaStr = rb.req.getParams().get(CursorMarkParams.REPLICA_MARK_PARAM);
+      final String replicaStr = rb.req.getParams().get(CursorMarkParams.REPLICA_SET_PARAM);
       if (null != replicaStr) {
         final ReplicaSet replicaSet = new ReplicaSet(replicaStr);
 //        replicaSet.parseSerializedTotem(replicaStr);
@@ -551,7 +551,7 @@ public class QueryComponent extends SearchComponent
                    rb.getNextCursorMark().getSerializedTotem());
       }
       if (null != rb.getUsedReplicaSet()) {
-        rb.rsp.add(CursorMarkParams.REPLICA_MARK_USED,
+        rb.rsp.add(CursorMarkParams.REPLICA_SET_USED,
             rb.getUsedReplicaSet());
       }
     }
@@ -848,7 +848,7 @@ public class QueryComponent extends SearchComponent
     }
 
     if (null != rb.getUsedReplicaSet()) {
-      rb.rsp.add(CursorMarkParams.REPLICA_MARK_USED,
+      rb.rsp.add(CursorMarkParams.REPLICA_SET_USED,
           rb.getUsedReplicaSet());
     }
   }

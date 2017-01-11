@@ -43,9 +43,12 @@ public interface CursorMarkParams {
    */
   public static final String CURSOR_MARK_START = "*";
 
-  public static final String REPLICA_MARK_PARAM = "replicaMark";
-  public static final String REPLICA_MARK_USED = "usedReplicaMark";
-  public static final String REPLICA_MARK_START = "";
+  /*
+    TODO: maybe extracting the replicaSet to a different class or integrate the repSet in the cursorMark to make it by default used (no user site changes necessary!)
+   */
+  public static final String REPLICA_SET_PARAM = "replicaSet";
+  public static final String REPLICA_SET_USED = "usedReplicaSet";
+  public static final String REPLICA_SET_START = "";
 
 }
 

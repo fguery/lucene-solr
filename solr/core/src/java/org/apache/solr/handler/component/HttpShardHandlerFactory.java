@@ -301,10 +301,10 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
 
     final boolean preferLocalShards = params.getBool(CommonParams.PREFER_LOCAL_SHARDS, false);
 
-    String[] replicatMark = params.getParams(CursorMarkParams.REPLICA_MARK_PARAM);
+    String[] replicatMark = params.getParams(CursorMarkParams.REPLICA_SET_PARAM);
     if (replicatMark != null) {
       if (preferLocalShards) {
-        log.warn("Due to presence of '"+CursorMarkParams.REPLICA_MARK_PARAM
+        log.warn("Due to presence of '"+CursorMarkParams.REPLICA_SET_PARAM
             +"' ignoring '"+CommonParams.PREFER_LOCAL_SHARDS+"' flag");
       }
       return new ShufflingReplicaListTransformer(r) {

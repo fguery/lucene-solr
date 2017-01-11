@@ -61,7 +61,11 @@ public class QueryCommand {
   }
 
   private ReplicaSet replicaSet;
-  public ReplicaSet getReplicaSet() { return replicaSet; }
+
+  public ReplicaSet getReplicaSet() {
+    return replicaSet;
+  }
+
   public QueryCommand setReplicaSet(ReplicaSet replicaSet) {
     this.replicaSet = replicaSet;
     return this;

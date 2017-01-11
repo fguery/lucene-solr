@@ -53,7 +53,7 @@ public class QueryResponse extends SolrResponseBase
   private NamedList<NamedList<Number>> _termsInfo = null;
   private NamedList<SolrDocumentList> _moreLikeThisInfo = null;
   private String _cursorMarkNext = null;
-  private String _usedReplicaMark = null;
+  private String _usedReplicaSet = null;
 
   // Grouping response
   private NamedList<Object> _groupedInfo = null;
@@ -176,8 +176,8 @@ public class QueryResponse extends SolrResponseBase
       else if ( CursorMarkParams.CURSOR_MARK_NEXT.equals( n ) ) {
         _cursorMarkNext = (String) res.getVal( i );
       }
-      else if ( CursorMarkParams.REPLICA_MARK_USED.equals( n ) ) {
-        _usedReplicaMark = (String) res.getVal( i );
+      else if ( CursorMarkParams.REPLICA_SET_USED.equals( n ) ) {
+        _usedReplicaSet = (String) res.getVal( i );
       }
     }
     if(_facetInfo != null) extractFacetInfo( _facetInfo );
@@ -630,9 +630,8 @@ public class QueryResponse extends SolrResponseBase
     return _cursorMarkNext;
   }
 
-  public String getUsedReplicaMark() {
-    return _usedReplicaMark;
-  }
+  public String getUsedReplicaSet() { return _usedReplicaSet; }
+
 }
 
 

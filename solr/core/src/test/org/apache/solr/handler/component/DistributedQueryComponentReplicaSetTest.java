@@ -29,15 +29,15 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 /**
- * Test for QueryComponent to set a "replica marker" on each search results.
- * When a query is executed, you could pass this "replica marker" to ensure your query
+ * Test for QueryComponent to set a "replica set" on each search results.
+ * When a query is executed, you could pass this "replica set" to ensure your query
  * gets executed on the same replica.
  * This will ensure you don't face the "bouncing result" problem, when you don't have the same
  * number of deleted documents.
  *
  * @see QueryComponent
  */
-public class DistributedQueryComponentReplicaMarkerTest extends SolrCloudTestCase {
+public class DistributedQueryComponentReplicaSetTest extends SolrCloudTestCase {
 
   private static final String COLLECTION = "choice";
   private static final String id = "id";
@@ -58,18 +58,18 @@ public class DistributedQueryComponentReplicaMarkerTest extends SolrCloudTestCas
 
     new UpdateRequest()
         .add(sdoc(id, "1", "text", "a", "test_sS", "21", "payload", ByteBuffer.wrap(new byte[]{0x12, 0x62, 0x15})))
-        .add(sdoc(id, "2", "text", "b", "test_sS", "22", "payload", ByteBuffer.wrap(new byte[]{0x25, 0x21, 0x16})))                  //  5
-        .add(sdoc(id, "3", "text", "a", "test_sS", "23", "payload", ByteBuffer.wrap(new byte[]{0x35, 0x32, 0x58})))                  //  8
-        .add(sdoc(id, "4", "text", "b", "test_sS", "24", "payload", ByteBuffer.wrap(new byte[]{0x25, 0x21, 0x15})))                    //  4
-        .add(sdoc(id, "5", "text", "a", "test_sS", "25", "payload", ByteBuffer.wrap(new byte[]{0x35, 0x35, 0x10, 0x00})))              //  9
-        .add(sdoc(id, "6", "text", "c", "test_sS", "26", "payload", ByteBuffer.wrap(new byte[]{0x1a, 0x2b, 0x3c, 0x00, 0x00, 0x03})))  //  3
-        .add(sdoc(id, "7", "text", "c", "test_sS", "27", "payload", ByteBuffer.wrap(new byte[]{0x00, 0x3c, 0x73})))                    //  1
-        .add(sdoc(id, "8", "text", "c", "test_sS", "28", "payload", ByteBuffer.wrap(new byte[]{0x59, 0x2d, 0x4d})))                    // 11
-        .add(sdoc(id, "9", "text", "a", "test_sS", "29", "payload", ByteBuffer.wrap(new byte[]{0x39, 0x79, 0x7a})))                    // 10
-        .add(sdoc(id, "10", "text", "b", "test_sS", "30", "payload", ByteBuffer.wrap(new byte[]{0x31, 0x39, 0x7c})))                   //  6
+        .add(sdoc(id, "2", "text", "b", "test_sS", "22", "payload", ByteBuffer.wrap(new byte[]{0x25, 0x21, 0x16})))                       //  5
+        .add(sdoc(id, "3", "text", "a", "test_sS", "23", "payload", ByteBuffer.wrap(new byte[]{0x35, 0x32, 0x58})))                       //  8
+        .add(sdoc(id, "4", "text", "b", "test_sS", "24", "payload", ByteBuffer.wrap(new byte[]{0x25, 0x21, 0x15})))                       //  4
+        .add(sdoc(id, "5", "text", "a", "test_sS", "25", "payload", ByteBuffer.wrap(new byte[]{0x35, 0x35, 0x10, 0x00})))                 //  9
+        .add(sdoc(id, "6", "text", "c", "test_sS", "26", "payload", ByteBuffer.wrap(new byte[]{0x1a, 0x2b, 0x3c, 0x00, 0x00, 0x03})))     //  3
+        .add(sdoc(id, "7", "text", "c", "test_sS", "27", "payload", ByteBuffer.wrap(new byte[]{0x00, 0x3c, 0x73})))                       //  1
+        .add(sdoc(id, "8", "text", "c", "test_sS", "28", "payload", ByteBuffer.wrap(new byte[]{0x59, 0x2d, 0x4d})))                       // 11
+        .add(sdoc(id, "9", "text", "a", "test_sS", "29", "payload", ByteBuffer.wrap(new byte[]{0x39, 0x79, 0x7a})))                       // 10
+        .add(sdoc(id, "10", "text", "b", "test_sS", "30", "payload", ByteBuffer.wrap(new byte[]{0x31, 0x39, 0x7c})))                      //  6
         .add(sdoc(id, "11", "text", "d", "test_sS", "31", "payload", ByteBuffer.wrap(new byte[]{(byte) 0xff, (byte) 0xaf, (byte) 0x9c}))) // 13
-        .add(sdoc(id, "12", "text", "d", "test_sS", "32", "payload", ByteBuffer.wrap(new byte[]{0x34, (byte) 0xdd, 0x4d})))             //  7
-        .add(sdoc(id, "13", "text", "d", "test_sS", "33", "payload", ByteBuffer.wrap(new byte[]{(byte) 0x80, 0x11, 0x33})))             // 12
+        .add(sdoc(id, "12", "text", "d", "test_sS", "32", "payload", ByteBuffer.wrap(new byte[]{0x34, (byte) 0xdd, 0x4d})))               //  7
+        .add(sdoc(id, "13", "text", "d", "test_sS", "33", "payload", ByteBuffer.wrap(new byte[]{(byte) 0x80, 0x11, 0x33})))               // 12
         .commit(cluster.getSolrClient(), COLLECTION);
 
   }
@@ -88,24 +88,24 @@ public class DistributedQueryComponentReplicaMarkerTest extends SolrCloudTestCas
   }
 
   @Test
-  public void testReplicaMarkNotUsed() throws Exception {
+  public void testReplicaSetNotUsed() throws Exception {
     QueryResponse rsp;
     
     rsp = cluster.getSolrClient().query(COLLECTION,
         new SolrQuery("q", "*:*", "fl", id+",score", "sort", id+" asc", "rows", "5"));
-    assertNull("unexpectedly found replica mark in response: "+rsp, rsp.getUsedReplicaMark());
+    assertNull("unexpectedly found replica set in response: "+rsp, rsp.getUsedReplicaSet());
   }
   
   @Test
-  public void testReplicaMarkUsed() throws Exception {
+  public void testReplicaSetUsed() throws Exception {
     QueryResponse rsp;
     
     rsp = cluster.getSolrClient().query(COLLECTION,
         new SolrQuery("q", "*:*", "fl", id+",score", "sort", id+" asc", "rows", "5",
             CursorMarkParams.CURSOR_MARK_PARAM, CursorMarkParams.CURSOR_MARK_START,
-            CursorMarkParams.REPLICA_MARK_PARAM, CursorMarkParams.REPLICA_MARK_START));
-    assertNotNull(rsp.getUsedReplicaMark());
-    assertTrue("rsp does not mention "+CursorMarkParams.REPLICA_MARK_USED,
-        rsp.toString().contains(CursorMarkParams.REPLICA_MARK_USED));
+            CursorMarkParams.REPLICA_SET_PARAM, CursorMarkParams.REPLICA_SET_START));
+    assertNotNull(rsp.getUsedReplicaSet());
+    assertTrue("rsp does not mention "+CursorMarkParams.REPLICA_SET_USED,
+        rsp.toString().contains(CursorMarkParams.REPLICA_SET_USED));
   }
 }
