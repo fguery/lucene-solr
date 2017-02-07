@@ -16,6 +16,20 @@
  */
 package org.apache.solr.handler.component;
 
+import java.io.IOException;
+import java.lang.invoke.MethodHandles;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.commons.lang.StringUtils;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -36,25 +50,11 @@ import org.apache.solr.common.util.StrUtils;
 import org.apache.solr.common.util.URLUtil;
 import org.apache.solr.core.CoreDescriptor;
 import org.apache.solr.core.PluginInfo;
-import org.apache.solr.update.UpdateShardHandlerConfig;
 import org.apache.solr.request.SolrQueryRequest;
+import org.apache.solr.update.UpdateShardHandlerConfig;
 import org.apache.solr.util.DefaultSolrThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletionService;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 
 public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.apache.solr.util.plugin.PluginInfoInitialized {
@@ -295,25 +295,74 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
       return s != null && s.startsWith(preferredHostAddress);
     }
   }
-  ReplicaListTransformer getReplicaListTransformer(final SolrQueryRequest req)
-  {
-    final SolrParams params = req.getParams();
 
+  /**
+   *
+   * @param req
+   * @return
+   */
+  ReplicaListTransformer getReplicaListTransformer(final SolrQueryRequest req) {
+    final SolrParams params = req.getParams();
     final boolean preferLocalShards = params.getBool(CommonParams.PREFER_LOCAL_SHARDS, false);
 
-    String[] replicatMark = params.getParams(CursorMarkParams.REPLICA_SET_PARAM);
-    if (replicatMark != null) {
+    // TODO: Oliver Kilian reuse preflocalshards
+    // String[] replicaSet = params.getParams(CursorMarkParams.REPLICA_SET_PARAM);
+    String replicaSet = params.get(CursorMarkParams.REPLICA_SET_PARAM);
+    log.info("### Olli -- (getReplicaListTransformer) replicaSet: " + replicaSet.toString());
+    if (replicaSet != null && replicaSet.length() > 0) {
       if (preferLocalShards) {
-        log.warn("Due to presence of '"+CursorMarkParams.REPLICA_SET_PARAM
-            +"' ignoring '"+CommonParams.PREFER_LOCAL_SHARDS+"' flag");
+        log.warn("Due to presence of '" + CursorMarkParams.REPLICA_SET_PARAM
+            + "' ignoring '" + CommonParams.PREFER_LOCAL_SHARDS + "' flag");
       }
-      return new ShufflingReplicaListTransformer(r) {
-        @Override
-        public void transform(List<?> choices)
-        {
-          // TODO
-        }
-      };
+      // Use such kind of code to split the urls
+      final List<String> shardUrls;
+      shardUrls = StrUtils.splitSmart(replicaSet, "|", true);
+      for (String url : shardUrls){
+        log.info("### Olli -- (getReplicaListTransformer) part of repSet: " + url);
+      }
+
+
+      final CoreDescriptor coreDescriptor = req.getCore().getCoreDescriptor();
+      final ZkController zkController = coreDescriptor.getCoreContainer().getZkController();
+      final String preferredHostAddress = (zkController != null) ? zkController.getBaseUrl() : null;
+      if (preferredHostAddress == null) {
+        log.warn("Couldn't determine current host address to prefer local shards");
+      } else {
+
+        log.info("### Olli -- (getReplicaListTransformer) got preferredHostAddress: " + preferredHostAddress);
+
+        return new ShufflingReplicaListTransformer(r) {
+          @Override
+          public void transform(List<?> choices) {
+            // TODO: Oliver Kilian (Olli)
+            log.info("### Olli -- (getReplicaListTransformer) before sorting choices: " + choices);
+            super.transform(choices);
+            String preferredRep = ""; // TODO: Oliver Kilian (Olli) test final and null
+            for (Object obj : choices){
+              if (preferredRep.length()>0) break;
+              if (obj instanceof Replica) {
+                Replica rep = (Replica) obj;
+//                log.info("### Olli -- (getReplicaListTransformer) which data? getNodeName: " + rep.getNodeName() + " getCoreName: " + rep.getCoreName() + " getCoreUrl: " + rep.getCoreUrl());
+                String coreUrl = rep.getCoreUrl();
+                for (String url : shardUrls) {
+//                  log.info("### Olli -- (getReplicaListTransformer) compare: " + url+ " and " +coreUrl);
+                  log.info("### Olli -- (getReplicaListTransformer) compare: " + url.substring(0, url.lastIndexOf('_'))+ " and " +coreUrl);
+//                  if (url.equals(coreUrl)) {
+                  if (coreUrl.contains(url.substring(0, url.lastIndexOf('_')))) {
+                    preferredRep = url;
+                    log.info("### Olli -- (getReplicaListTransformer) found preferredRepSetUrl: " + preferredRep);
+                    break;
+                  }
+                }
+              }
+            }
+            log.info("### Olli -- (getReplicaListTransformer) found preferredRepSetUrl: " + preferredRep);
+            choices.sort(new IsOnPreferredHostComparator(preferredRep));
+            log.info("### Olli -- (getReplicaListTransformer) after sorting choices: " + choices);
+//            System.out.println("### Olli -- (getReplicaListTransformer) after sorting choices: " + choices);
+          }
+        };
+      }
     }
 
     if (preferLocalShards) {

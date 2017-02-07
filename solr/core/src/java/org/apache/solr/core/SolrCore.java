@@ -167,7 +167,7 @@ public final class SolrCore implements SolrInfoMBean, Closeable {
   public static final String version="1.0";
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  public static final Logger requestLog = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getName() + ".Request");
+  public static final Logger requestLog = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass().getName() + ".Request (real Class:SolrCore !!)");
 
   private String name;
   private String logid; // used to show what name is set

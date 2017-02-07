@@ -93,6 +93,8 @@ public class ReplicaListTransformerTest extends LuceneTestCase {
 
       transformer = new HttpShardHandlerFactory() {
 
+        // TODO: Oliver Kilian config in the solr.xml
+
         @Override
         ReplicaListTransformer getReplicaListTransformer(final SolrQueryRequest req)
         {

@@ -281,6 +281,7 @@ public class HttpShardHandler extends ShardHandler {
     CloudDescriptor cloudDescriptor = coreDescriptor.getCloudDescriptor();
     ZkController zkController = coreDescriptor.getCoreContainer().getZkController();
 
+    // TODO: Oliver Kilian (Olli) select your repSet here
     final ReplicaListTransformer replicaListTransformer = httpShardHandlerFactory.getReplicaListTransformer(req);
 
     if (shards != null) {
@@ -349,6 +350,9 @@ public class HttpShardHandler extends ShardHandler {
       // and make it a non-distributed request.
       String ourSlice = cloudDescriptor.getShardId();
       String ourCollection = cloudDescriptor.getCollectionName();
+
+      log.info("##### Olli - ourSlice: " +ourSlice+ " and ourCollection: " +ourCollection);
+
       if (rb.slices.length == 1 && rb.slices[0] != null
           && ( rb.slices[0].equals(ourSlice) || rb.slices[0].equals(ourCollection + "_" + ourSlice) )  // handle the <collection>_<slice> format
           && cloudDescriptor.getLastPublished() == Replica.State.ACTIVE) {
@@ -398,13 +402,17 @@ public class HttpShardHandler extends ShardHandler {
             eligibleSliceReplicas.add(replica);
           }
 
+          log.info("##### Olli - eligibleSliceReplicas: " +eligibleSliceReplicas);
+          // TODO: Oliver Kilian
           replicaListTransformer.transform(eligibleSliceReplicas);
+          log.info("##### Olli - after transforming eligibleSliceReplicas: " +eligibleSliceReplicas);
 
           shardUrls = new ArrayList<>(eligibleSliceReplicas.size());
           for (Replica replica : eligibleSliceReplicas) {
             String url = ZkCoreNodeProps.getCoreUrl(replica);
             shardUrls.add(url);
           }
+          log.info("##### Olli - enriched with urls shardUrls: " +shardUrls);
 
           if (shardUrls.isEmpty()) {
             boolean tolerant = rb.req.getParams().getBool(ShardParams.SHARDS_TOLERANT, false);
@@ -443,6 +451,7 @@ public class HttpShardHandler extends ShardHandler {
   private void addSlices(Map<String,Slice> target, ClusterState state, SolrParams params, String collectionName, String shardKeys, boolean multiCollection) {
     DocCollection coll = state.getCollection(collectionName);
     Collection<Slice> slices = coll.getRouter().getSearchSlices(shardKeys, params , coll);
+//    log.info("### Olli - target: " + target + " collectionName: " + collectionName + " slices: " + slices);
     ClientUtils.addSlices(target, collectionName, slices, multiCollection);
   }
 

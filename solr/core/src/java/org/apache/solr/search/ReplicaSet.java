@@ -33,27 +33,44 @@ package org.apache.solr.search;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import java.lang.invoke.MethodHandles;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Created by okilian on 09/01/2017.
  */
 public class ReplicaSet {
 
+  private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
 
   private final String repSet;
 
   /**
    * TODO
    */
-  public ReplicaSet(String repSet) { this.repSet = repSet; }
+  public ReplicaSet(String repSet) {
+    this.repSet = repSet;
+//    log.info("#### Olli - New repSet to: " + this.repSet);
+  }
 
 
   /**
    * TODO
    */
-  public ReplicaSet createNext(String nextSortValues) {
-    final ReplicaSet next = new ReplicaSet(null);
+  public ReplicaSet createNext(String nextRepSetValues) {
     //TODO: get the used replica set and set it
-    return new ReplicaSet("Hello");
+//    log.info("#### Olli - Creating NEXT repSet: " + nextRepSetValues);
+    return new ReplicaSet(nextRepSetValues);
+  }
+
+  /**
+   * TODO
+   */
+  public String toString(){
+    return this.repSet;
   }
 
 

@@ -17,6 +17,7 @@
 package org.apache.solr.handler.component;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.solr.client.solrj.SolrQuery;
 import org.apache.solr.client.solrj.request.CollectionAdminRequest;
@@ -39,12 +40,12 @@ import org.junit.Test;
  */
 public class DistributedQueryComponentReplicaSetTest extends SolrCloudTestCase {
 
-  private static final String COLLECTION = "choice";
+  private static final String COLLECTION = "repSet";
   private static final String id = "id";
 
-  private static final int numShards = 3;
-  private static final int numReplicas = 2;
-  private static final int maxShardsPerNode = 1;
+  private static final int numShards = 4;
+  private static final int numReplicas = 3;
+  private static final int maxShardsPerNode = 2;
 
   @BeforeClass
   public static void setupCluster() throws Exception {
@@ -101,11 +102,41 @@ public class DistributedQueryComponentReplicaSetTest extends SolrCloudTestCase {
     QueryResponse rsp;
     
     rsp = cluster.getSolrClient().query(COLLECTION,
-        new SolrQuery("q", "*:*", "fl", id+",score", "sort", id+" asc", "rows", "5",
+        new SolrQuery("q", "*:*", "fl", id+",score", "sort", id+" asc", "rows", "10",
             CursorMarkParams.CURSOR_MARK_PARAM, CursorMarkParams.CURSOR_MARK_START,
-            CursorMarkParams.REPLICA_SET_PARAM, CursorMarkParams.REPLICA_SET_START));
+//            CursorMarkParams.REPLICA_SET_PARAM, CursorMarkParams.REPLICA_SET_START
+            CursorMarkParams.REPLICA_SET_PARAM, "ollisTestParam"
+        ));
+    System.out.println("#### Olli - Used repSet " + rsp.getUsedReplicaSet());
     assertNotNull(rsp.getUsedReplicaSet());
     assertTrue("rsp does not mention "+CursorMarkParams.REPLICA_SET_USED,
         rsp.toString().contains(CursorMarkParams.REPLICA_SET_USED));
   }
+
+
+  @Test
+  public void testReplicaSetUsage() throws Exception {
+    QueryResponse rsp;
+    QueryResponse rsp2;
+
+    rsp = cluster.getSolrClient().query(COLLECTION,
+        new SolrQuery("q", "*:*", "fl", id+",score", "sort", id+" asc", "rows", "3",
+            CursorMarkParams.CURSOR_MARK_PARAM, CursorMarkParams.CURSOR_MARK_START,
+            CursorMarkParams.REPLICA_SET_PARAM, CursorMarkParams.REPLICA_SET_START
+        ));
+    TimeUnit.SECONDS.sleep(1);
+    System.out.println("#### Olli - Used repSet: " + rsp.getUsedReplicaSet());
+    assertNotNull(rsp.getUsedReplicaSet());
+    rsp2 = cluster.getSolrClient().query(COLLECTION,
+        new SolrQuery("q", "*:*", "fl", id+",score", "sort", id+" asc", "rows", "3",
+            CursorMarkParams.CURSOR_MARK_PARAM, rsp.getNextCursorMark(),
+            CursorMarkParams.REPLICA_SET_PARAM, rsp.getUsedReplicaSet()
+        ));
+    TimeUnit.SECONDS.sleep(1);
+    System.out.println("#### Olli - requested repSet: " + rsp.getUsedReplicaSet()+ "\n and used repSet: " + rsp2.getUsedReplicaSet());
+    assertNotNull(rsp2.getUsedReplicaSet());
+    assertTrue("repSet wasn't reused "+rsp.getUsedReplicaSet(),
+        rsp.getUsedReplicaSet().equals(rsp2.getUsedReplicaSet()));
+  }
+
 }

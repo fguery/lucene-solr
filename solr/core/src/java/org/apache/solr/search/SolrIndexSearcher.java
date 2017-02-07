@@ -1742,7 +1742,10 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable, SolrI
       qr.setNextCursorMark(nextCursorMark);
 
       // TODO: (Oliver Kilian) this is just to get the unit test work, it is not the right position. move this!
-      ReplicaSet usedReplicaSet = lastReplicaSet.createNext("aa");
+      String curRepNode = this.name;
+      curRepNode = (String) curRepNode.subSequence(curRepNode.indexOf('[')+1, curRepNode.lastIndexOf(']'));
+      log.info("#### Olli - Setting curRepNode to: " + curRepNode + " and old set: " +lastReplicaSet.toString());
+      ReplicaSet usedReplicaSet = lastReplicaSet.createNext(curRepNode);
       assert null != usedReplicaSet : "null usedReplicaSet";
       qr.setUsedReplicaSet(usedReplicaSet);
 

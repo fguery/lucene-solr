@@ -415,6 +415,7 @@ public class SearchHandler extends RequestHandlerBase implements SolrCoreAware ,
               }
             }
 
+            log.info("### Olli: ShardRequest="+srsp.getShardRequest());
             rb.finished.add(srsp.getShardRequest());
 
             // let the components see the responses to the request
@@ -433,6 +434,7 @@ public class SearchHandler extends RequestHandlerBase implements SolrCoreAware ,
     }
     
     // SOLR-5550: still provide shards.info if requested even for a short circuited distrib request
+    //TODO: Oliver Kilian
     if(!rb.isDistrib && req.getParams().getBool(ShardParams.SHARDS_INFO, false) && rb.shortCircuitedURL != null) {  
       NamedList<Object> shardInfo = new SimpleOrderedMap<Object>();
       SimpleOrderedMap<Object> nl = new SimpleOrderedMap<Object>();        
