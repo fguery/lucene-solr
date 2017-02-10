@@ -304,11 +304,10 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
   ReplicaListTransformer getReplicaListTransformer(final SolrQueryRequest req) {
     final SolrParams params = req.getParams();
     final boolean preferLocalShards = params.getBool(CommonParams.PREFER_LOCAL_SHARDS, false);
+    final String replicaSet = params.get(CursorMarkParams.REPLICA_SET_PARAM);
 
-    // TODO: Oliver Kilian reuse preflocalshards
-    // String[] replicaSet = params.getParams(CursorMarkParams.REPLICA_SET_PARAM);
-    String replicaSet = params.get(CursorMarkParams.REPLICA_SET_PARAM);
-    log.info("### Olli -- (getReplicaListTransformer) replicaSet: " + replicaSet.toString());
+    // TODO: Oliver Kilian (Olli) maybe to extract the different returned ShufflingReplicaListTransformer.transform methods
+    log.info("### Olli -- (getReplicaListTransformer) replicaSet: " + replicaSet);
     if (replicaSet != null && replicaSet.length() > 0) {
       if (preferLocalShards) {
         log.warn("Due to presence of '" + CursorMarkParams.REPLICA_SET_PARAM
@@ -317,52 +316,44 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
       // Use such kind of code to split the urls
       final List<String> shardUrls;
       shardUrls = StrUtils.splitSmart(replicaSet, "|", true);
-      for (String url : shardUrls){
+      for (String url : shardUrls) {
         log.info("### Olli -- (getReplicaListTransformer) part of repSet: " + url);
       }
 
-
-      final CoreDescriptor coreDescriptor = req.getCore().getCoreDescriptor();
-      final ZkController zkController = coreDescriptor.getCoreContainer().getZkController();
-      final String preferredHostAddress = (zkController != null) ? zkController.getBaseUrl() : null;
-      if (preferredHostAddress == null) {
-        log.warn("Couldn't determine current host address to prefer local shards");
-      } else {
-
-        log.info("### Olli -- (getReplicaListTransformer) got preferredHostAddress: " + preferredHostAddress);
-
-        return new ShufflingReplicaListTransformer(r) {
-          @Override
-          public void transform(List<?> choices) {
-            // TODO: Oliver Kilian (Olli)
-            log.info("### Olli -- (getReplicaListTransformer) before sorting choices: " + choices);
-            super.transform(choices);
-            String preferredRep = ""; // TODO: Oliver Kilian (Olli) test final and null
-            for (Object obj : choices){
-              if (preferredRep.length()>0) break;
-              if (obj instanceof Replica) {
-                Replica rep = (Replica) obj;
-//                log.info("### Olli -- (getReplicaListTransformer) which data? getNodeName: " + rep.getNodeName() + " getCoreName: " + rep.getCoreName() + " getCoreUrl: " + rep.getCoreUrl());
-                String coreUrl = rep.getCoreUrl();
-                for (String url : shardUrls) {
-//                  log.info("### Olli -- (getReplicaListTransformer) compare: " + url+ " and " +coreUrl);
-                  log.info("### Olli -- (getReplicaListTransformer) compare: " + url.substring(0, url.lastIndexOf('_'))+ " and " +coreUrl);
-//                  if (url.equals(coreUrl)) {
-                  if (coreUrl.contains(url.substring(0, url.lastIndexOf('_')))) {
-                    preferredRep = url;
-                    log.info("### Olli -- (getReplicaListTransformer) found preferredRepSetUrl: " + preferredRep);
-                    break;
-                  }
+      return new ShufflingReplicaListTransformer(r) {
+        @Override
+        public void transform(List<?> choices) {
+          // TODO: Oliver Kilian (Olli)
+          log.info("### Olli -- (getReplicaListTransformer) before sorting choices: " + choices);
+          super.transform(choices);
+          String preferredRep = ""; // TODO: Oliver Kilian (Olli) test final and null
+          for (Object obj : choices) {
+            if (preferredRep.length() > 0) break;
+            if (obj instanceof Replica) {
+              Replica rep = (Replica) obj;
+              String coreUrl = rep.getCoreUrl();
+              for (String url : shardUrls) {
+                String tmpUrl = url;
+                if (tmpUrl.lastIndexOf('_') > 0) {
+                  tmpUrl = tmpUrl.substring(0, tmpUrl.lastIndexOf('_'));
+                }
+                log.info("### Olli -- (getReplicaListTransformer) compare: " + tmpUrl + " and " + coreUrl);
+                if (coreUrl.contains(tmpUrl)) {
+                  preferredRep = tmpUrl;
+                  log.info("### Olli -- (getReplicaListTransformer) found preferredRepSetUrl: " + preferredRep);
+                  break;
                 }
               }
             }
-            log.info("### Olli -- (getReplicaListTransformer) found preferredRepSetUrl: " + preferredRep);
+          }
+          if (preferredRep != null && preferredRep.length() > 0) {
             choices.sort(new IsOnPreferredHostComparator(preferredRep));
             log.info("### Olli -- (getReplicaListTransformer) after sorting choices: " + choices);
-//            System.out.println("### Olli -- (getReplicaListTransformer) after sorting choices: " + choices);
+          } else {
+            log.info("### Olli -- (getReplicaListTransformer) couldn't found a preferredRepSetUrl! Leave the replica choice as it is.");
           }
-        };
-      }
+        }
+      };
     }
 
     if (preferLocalShards) {
@@ -374,8 +365,7 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
       } else {
         return new ShufflingReplicaListTransformer(r) {
           @Override
-          public void transform(List<?> choices)
-          {
+          public void transform(List<?> choices) {
             if (choices.size() > 1) {
               super.transform(choices);
               if (log.isDebugEnabled()) {
@@ -393,7 +383,7 @@ public class HttpShardHandlerFactory extends ShardHandlerFactory implements org.
       }
     }
 
-    return shufflingReplicaListTransformer;
+    return shufflingReplicaListTransformer; // returning standard transformer
   }
 
   /**

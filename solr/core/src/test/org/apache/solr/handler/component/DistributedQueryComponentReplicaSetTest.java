@@ -109,13 +109,12 @@ public class DistributedQueryComponentReplicaSetTest extends SolrCloudTestCase {
         ));
     System.out.println("#### Olli - Used repSet " + rsp.getUsedReplicaSet());
     assertNotNull(rsp.getUsedReplicaSet());
-    assertTrue("rsp does not mention "+CursorMarkParams.REPLICA_SET_USED,
-        rsp.toString().contains(CursorMarkParams.REPLICA_SET_USED));
+    assertTrue("rsp does not mention "+CursorMarkParams.REPLICA_SET_USED, rsp.toString().contains(CursorMarkParams.REPLICA_SET_USED));
   }
 
 
   @Test
-  public void testReplicaSetUsage() throws Exception {
+  public void testReplicaSetReuse() throws Exception {
     QueryResponse rsp;
     QueryResponse rsp2;
 
@@ -135,8 +134,7 @@ public class DistributedQueryComponentReplicaSetTest extends SolrCloudTestCase {
     TimeUnit.SECONDS.sleep(1);
     System.out.println("#### Olli - requested repSet: " + rsp.getUsedReplicaSet()+ "\n and used repSet: " + rsp2.getUsedReplicaSet());
     assertNotNull(rsp2.getUsedReplicaSet());
-    assertTrue("repSet wasn't reused "+rsp.getUsedReplicaSet(),
-        rsp.getUsedReplicaSet().equals(rsp2.getUsedReplicaSet()));
+    assertTrue("repSet wasn't reused "+rsp.getUsedReplicaSet(), rsp.getUsedReplicaSet().equals(rsp2.getUsedReplicaSet()));
   }
 
 }
