@@ -83,12 +83,12 @@ public class QueryResult {
     return nextCursorMark;
   }
 
-  public ReplicaSet getUsedReplicaSet() {
-    return usedReplicaSet;
-  }
+//  public ReplicaSet getUsedReplicaSet() {
+//    return usedReplicaSet;
+//  }
 
-  public void setUsedReplicaSet(ReplicaSet usedReplicaSet) {
-    this.usedReplicaSet = usedReplicaSet;
-  }
+//  public void setUsedReplicaSet(ReplicaSet usedReplicaSet) {
+//    this.usedReplicaSet = usedReplicaSet;
+//  }
 
 }

@@ -1721,7 +1721,7 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable, SolrI
     }
 
     final CursorMark lastCursorMark = qc.getCursorMark();
-    final ReplicaSet lastReplicaSet = qc.getReplicaSet();
+//    final ReplicaSet lastReplicaSet = qc.getReplicaSet();
 
     // if we have a cursor, then we have a sort that at minimum involves uniqueKey..
     // so we must have a TopFieldDocs containing FieldDoc[]
@@ -1741,14 +1741,13 @@ public class SolrIndexSearcher extends IndexSearcher implements Closeable, SolrI
       assert null != nextCursorMark : "null nextCursorMark";
       qr.setNextCursorMark(nextCursorMark);
 
-      // TODO: (Oliver Kilian) this is just to get the unit test work, it is not the right position. move this!
-      String curRepNode = this.name;
-      curRepNode = (String) curRepNode.subSequence(curRepNode.indexOf('[')+1, curRepNode.lastIndexOf(']'));
-      log.info("#### Olli - Setting curRepNode to: " + curRepNode + " and old set: " +lastReplicaSet.toString());
-      ReplicaSet usedReplicaSet = lastReplicaSet.createNext(curRepNode);
-      assert null != usedReplicaSet : "null usedReplicaSet";
-      qr.setUsedReplicaSet(usedReplicaSet);
-
+//      // TODO: (Oliver Kilian) this is just to get the unit test work, it is not the right position. move this!
+//      String curRepNode = this.name;
+//      curRepNode = (String) curRepNode.subSequence(curRepNode.indexOf('[')+1, curRepNode.lastIndexOf(']'));
+//      log.info("#### Olli - Setting curRepNode to: " + curRepNode + " and old set: " +lastReplicaSet.toString());
+//      ReplicaSet usedReplicaSet = lastReplicaSet.createNext(curRepNode);
+//      assert null != usedReplicaSet : "null usedReplicaSet";
+//      qr.setUsedReplicaSet(usedReplicaSet);
     }
   }
 

@@ -464,10 +464,10 @@ public class ResponseBuilder
       assert null != result.getNextCursorMark() : "using cursor but no next cursor set";
       this.setNextCursorMark(result.getNextCursorMark());
     }
-    if (null != replicaSet) {
-      assert null != result.getUsedReplicaSet() : "using replicaSet but no used replica set";
-      this.setUsedReplicaSet(result.getUsedReplicaSet());
-    }
+//    if (null != replicaSet) {
+//      assert null != result.getUsedReplicaSet() : "using replicaSet but no used replica set";
+//      this.setUsedReplicaSet(result.getUsedReplicaSet());
+//    }
   }
   
   public long getNumberDocumentsFound() {
