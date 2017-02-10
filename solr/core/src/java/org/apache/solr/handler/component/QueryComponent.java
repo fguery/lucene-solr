@@ -48,7 +48,6 @@ import org.apache.lucene.search.Weight;
 import org.apache.lucene.search.grouping.GroupDocs;
 import org.apache.lucene.search.grouping.SearchGroup;
 import org.apache.lucene.search.grouping.TopGroups;
-import org.apache.lucene.util.ArrayUtil;
 import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.InPlaceMergeSorter;
 import org.apache.solr.client.solrj.SolrServerException;
@@ -117,7 +116,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * TODO!
- * 
+ *
  *
  * @since solr 1.3
  */
@@ -191,19 +190,19 @@ public class QueryComponent extends SearchComponent
 
       final String cursorStr = rb.req.getParams().get(CursorMarkParams.CURSOR_MARK_PARAM);
       if (null != cursorStr) {
-        final CursorMark cursorMark = new CursorMark(rb.req.getSchema(),
-                                                     rb.getSortSpec());
+        final CursorMark cursorMark = new CursorMark(rb.req.getSchema(), rb.getSortSpec());
         cursorMark.parseSerializedTotem(cursorStr);
+        /*
+        LOG.info("#### Olli - PREPARE - comparing cursorMark: " + cursorMark.getSerializedTotem() + " with rb.getCursorMark(): " + (null != rb.getCursorMark() ? rb.getCursorMark().getSerializedTotem() : "null"));
+        if (null != rb.getCursorMark() && rb.getCursorMark().getSerializedTotem().equals(cursorMark.getSerializedTotem()))
+          LOG.info("#### Olli - PREPARE - Setting cursorMark: " + cursorMark.getSerializedTotem() + " again. It is already in the response!");
+        else
+          LOG.info("#### Olli - PREPARE - Setting cursorMark: " + cursorMark.getSerializedTotem() + " first time.");
+          */
+
         rb.setCursorMark(cursorMark);
       }
 
-      final String replicaStr = rb.req.getParams().get(CursorMarkParams.REPLICA_SET_PARAM);
-      LOG.info("#### Olli - PREPARE - Getting from request the replicaSet: " + replicaStr+ " and set it in the response.. WRONG place, but it outside the loop (only once!)");
-      if (null != replicaStr) {
-        final ReplicaSet replicaSet = new ReplicaSet(replicaStr);
-//        replicaSet.parseSerializedTotem(replicaStr);
-        rb.setReplicaSet(replicaSet);
-      }
 
       String[] fqs = req.getParams().getParams(CommonParams.FQ);
       if (fqs!=null && fqs.length!=0) {
@@ -311,7 +310,7 @@ public class QueryComponent extends SearchComponent
   public void process(ResponseBuilder rb) throws IOException
   {
     LOG.debug("process: {}", rb.req.getParams());
-  
+
     SolrQueryRequest req = rb.req;
     SolrParams params = req.getParams();
     if (!params.getBool(COMPONENT_NAME, true)) {
@@ -320,7 +319,7 @@ public class QueryComponent extends SearchComponent
     SolrIndexSearcher searcher = req.getSearcher();
 
     StatsCache statsCache = req.getCore().getStatsCache();
-    
+
     int purpose = params.getInt(ShardParams.SHARDS_PURPOSE, ShardRequest.PURPOSE_GET_TOP_IDS);
     if ((purpose & ShardRequest.PURPOSE_GET_TERM_STATS) != 0) {
       statsCache.returnLocalStats(rb, searcher);
@@ -381,7 +380,7 @@ public class QueryComponent extends SearchComponent
     cmd.setTimeAllowed(timeAllowed);
 
     req.getContext().put(SolrIndexSearcher.STATS_SOURCE, statsCache.get(req));
-    
+
     QueryResult result = new QueryResult();
 
     cmd.setSegmentTerminateEarly(params.getBool(CommonParams.SEGMENT_TERMINATE_EARLY, CommonParams.SEGMENT_TERMINATE_EARLY_DEFAULT));
@@ -550,10 +549,6 @@ public class QueryComponent extends SearchComponent
       if (null != rb.getNextCursorMark()) {
         rb.rsp.add(CursorMarkParams.CURSOR_MARK_NEXT,
                    rb.getNextCursorMark().getSerializedTotem());
-      }
-      if (null != rb.getUsedReplicaSet()) {
-        rb.rsp.add(CursorMarkParams.REPLICA_SET_USED,
-            rb.getUsedReplicaSet());
       }
     }
 
@@ -848,20 +843,6 @@ public class QueryComponent extends SearchComponent
                  rb.getNextCursorMark().getSerializedTotem());
     }
 
-
-    // TODO: Olli -- is this the right place?
-    final String replicaStr = rb.req.getParams().get(CursorMarkParams.REPLICA_SET_PARAM);
-    LOG.info("#### Olli - regularFinishStage - Getting from request the replicaSet: " + replicaStr+ " and set it in the response.. WRONG place, but it outside the loop (only once!)");
-    if (null != replicaStr) {
-      final ReplicaSet replicaSet = new ReplicaSet(replicaStr);
-//        replicaSet.parseSerializedTotem(replicaStr);
-      rb.setReplicaSet(replicaSet);
-    }
-
-    LOG.info("#### Olli - Setting this usedRepSet: " + rb.getUsedReplicaSet() +".");
-    if (null != rb.getUsedReplicaSet()) {
-      rb.rsp.add(CursorMarkParams.REPLICA_SET_USED, rb.getUsedReplicaSet().toString());
-    }
   }
 
   protected void createDistributedStats(ResponseBuilder rb) {
@@ -892,7 +873,7 @@ public class QueryComponent extends SearchComponent
     boolean distribSinglePass = rb.req.getParams().getBool(ShardParams.DISTRIB_SINGLE_PASS, false);
 
     if(distribSinglePass || (fields != null && fields.wantsField(keyFieldName)
-        && fields.getRequestedFieldNames() != null  
+        && fields.getRequestedFieldNames() != null
         && (!fields.hasPatternMatching() && Arrays.asList(keyFieldName, "score").containsAll(fields.getRequestedFieldNames())))) {
       sreq.purpose |= ShardRequest.PURPOSE_GET_FIELDS;
       rb.onePassDistributedQuery = true;
@@ -906,9 +887,9 @@ public class QueryComponent extends SearchComponent
 
     // set the start (offset) to 0 for each shard request so we can properly merge
     // results from the start.
-    if(rb.shards_start > -1) {
+    if (rb.shards_start > -1) {
       // if the client set shards.start set this explicitly
-      sreq.params.set(CommonParams.START,rb.shards_start);
+      sreq.params.set(CommonParams.START, rb.shards_start);
     } else {
       sreq.params.set(CommonParams.START, "0");
     }
@@ -916,24 +897,24 @@ public class QueryComponent extends SearchComponent
     // perhaps we shouldn't attempt to parse the query at this level?
     // Alternate Idea: instead of specifying all these things at the upper level,
     // we could just specify that this is a shard request.
-    if(rb.shards_rows > -1) {
+    if (rb.shards_rows > -1) {
       // if the client set shards.rows set this explicity
-      sreq.params.set(CommonParams.ROWS,rb.shards_rows);
+      sreq.params.set(CommonParams.ROWS, rb.shards_rows);
     } else {
       sreq.params.set(CommonParams.ROWS, rb.getSortSpec().getOffset() + rb.getSortSpec().getCount());
     }
 
-    sreq.params.set(ResponseBuilder.FIELD_SORT_VALUES,"true");
+    sreq.params.set(ResponseBuilder.FIELD_SORT_VALUES, "true");
 
     boolean shardQueryIncludeScore = (rb.getFieldFlags() & SolrIndexSearcher.GET_SCORES) != 0 || rb.getSortSpec().includesScore();
     StringBuilder additionalFL = new StringBuilder();
     boolean additionalAdded = false;
-    if (distribSinglePass)  {
+    if (distribSinglePass) {
       String[] fls = rb.req.getParams().getParams(CommonParams.FL);
       if (fls != null && fls.length > 0 && (fls.length != 1 || !fls[0].isEmpty())) {
         // If the outer request contains actual FL's use them...
         sreq.params.set(CommonParams.FL, fls);
-        if (!fields.wantsField(keyFieldName))  {
+        if (!fields.wantsField(keyFieldName)) {
           additionalAdded = addFL(additionalFL, keyFieldName, additionalAdded);
         }
       } else {
@@ -963,7 +944,7 @@ public class QueryComponent extends SearchComponent
 
     rb.addRequest(this, sreq);
   }
-  
+
   protected boolean addFL(StringBuilder fl, String field, boolean additionalAdded) {
     if (additionalAdded) fl.append(",");
     fl.append(field);
@@ -1018,13 +999,14 @@ public class QueryComponent extends SearchComponent
     boolean partialResults = false;
     Boolean segmentTerminatedEarly = null;
 
+    // TODO: Oliver Kilian (Olli) use this only if there is a repSet in the request?
     ArrayList<String> usedReplicaList = new ArrayList<String>();
 
     for (ShardResponse srsp : sreq.responses) {
       SolrDocumentList docs = null;
       NamedList<?> responseHeader = null;
 
-      LOG.info("#### Olli - Got shardAddress: " + srsp.getShardAddress() + " and shards: " + srsp.getShard() + " and SolrResp: " + srsp.getSolrResponse().toString());
+      LOG.info("#### Olli - MERGEIDS - Got shardAddress: " + srsp.getShardAddress() + " and shards: " + srsp.getShard() + " and SolrResp: " + srsp.getSolrResponse().toString());
       usedReplicaList.add(srsp.getShardAddress());
 
       if (shardInfo != null) {
@@ -1059,7 +1041,7 @@ public class QueryComponent extends SearchComponent
           nl.add("time", srsp.getSolrResponse().getElapsedTime());
         }
 
-        LOG.info("#### Olli - Got shardAddress: " + srsp.getShardAddress() + " and shards: " +srsp.getShard()+ ". Use them for response?");
+        LOG.info("#### Olli - Got shardAddress: " + srsp.getShardAddress() + " and shards: " + srsp.getShard() + ". Use them for response?");
         shardInfo.add(srsp.getShard(), nl);
       }
       // now that we've added the shard info, let's only proceed if we have no error.
@@ -1174,16 +1156,39 @@ public class QueryComponent extends SearchComponent
 
     populateNextCursorMarkFromMergedShards(rb);
 
-    if (usedReplicaList != null && usedReplicaList.size()>0){
-      String[] usedReplicaArray = new String[usedReplicaList.size()];
-      usedReplicaArray = usedReplicaList.toArray(usedReplicaArray);
-      Arrays.sort(usedReplicaArray);
+    // TODO: Olli -- is this the right place?
+    final String replicaStr = rb.req.getParams().get(CursorMarkParams.REPLICA_SET_PARAM);
+    LOG.info("#### Olli - MERGEIDS - Getting from request the replicaSet: " + replicaStr + ".");
+    if (null != replicaStr) {
+
+      // Setting the requested repSet in the response
+      LOG.info("#### Olli - MERGEIDS - REQUEST-replicaSet: " + replicaStr + " and RESPONSE-replicaSet: " + rb.getReplicaSet());
+      if (replicaStr.equals(rb.getReplicaSet())) {
+        LOG.info("#### Olli - MERGEIDS -  replicaStr: " + replicaStr + " is already in the response! Don't set it again!");
+      } else {
+        final ReplicaSet replicaSet = new ReplicaSet(replicaStr);
+        rb.setReplicaSet(replicaSet);
+        // TODO: Oliver Kilian (Olli) Setting the usedRepSet in the ResponseBuilder.response really necessary, actually you can delete it!
+        rb.rsp.add(CursorMarkParams.REPLICA_SET_PARAM, replicaSet.toString());
+        LOG.info("#### Olli - MERGEIDS - Getting from request the replicaSet: " + replicaStr + " and set it in the response.");
+      }
+
+      // Setting the usedRepSet
       String usedReplicaListString = "";
-      for (String rep : usedReplicaArray){
-        usedReplicaListString += rep+"|";
+      if (usedReplicaList != null && usedReplicaList.size() > 0) {
+        String[] usedReplicaArray = new String[usedReplicaList.size()];
+        usedReplicaArray = usedReplicaList.toArray(usedReplicaArray);
+        Arrays.sort(usedReplicaArray);
+        for (String rep : usedReplicaArray) {
+          usedReplicaListString += rep + "|";
+        }
       }
       LOG.info("#### Olli - MERGEIDS - Setting in response this usedReplicas: " + usedReplicaListString);
+      // TODO: Oliver Kilian (Olli) Setting the usedRepSet in the response really necessary
       rb.setUsedReplicaSet(new ReplicaSet(usedReplicaListString).createNext(usedReplicaListString));
+      // TODO: Oliver Kilian (Olli) Setting the usedRepSet in the response really necessary
+      rb.rsp.add(CursorMarkParams.REPLICA_SET_USED, usedReplicaListString);
+
     }
 
     if (partialResults) {
@@ -1203,12 +1208,12 @@ public class QueryComponent extends SearchComponent
   }
 
   /**
-   * Inspects the state of the {@link ResponseBuilder} and populates the next 
-   * {@link ResponseBuilder#setNextCursorMark} as appropriate based on the merged 
+   * Inspects the state of the {@link ResponseBuilder} and populates the next
+   * {@link ResponseBuilder#setNextCursorMark} as appropriate based on the merged
    * sort values from individual shards
    *
-   * @param rb A <code>ResponseBuilder</code> that already contains merged 
-   *           <code>ShardDocs</code> in <code>resultIds</code>, may or may not be 
+   * @param rb A <code>ResponseBuilder</code> that already contains merged
+   *           <code>ShardDocs</code> in <code>resultIds</code>, may or may not be
    *           part of a Cursor based request (method will NOOP if not needed)
    */
   protected void populateNextCursorMarkFromMergedShards(ResponseBuilder rb) {
@@ -1253,13 +1258,13 @@ public class QueryComponent extends SearchComponent
     rb.setNextCursorMark(nextCursorMark);
   }
 
-  protected NamedList unmarshalSortValues(SortSpec sortSpec, 
-                                        NamedList sortFieldValues, 
+  protected NamedList unmarshalSortValues(SortSpec sortSpec,
+                                        NamedList sortFieldValues,
                                         IndexSchema schema) {
     NamedList unmarshalledSortValsPerField = new NamedList();
 
     if (0 == sortFieldValues.size()) return unmarshalledSortValsPerField;
-    
+
     List<SchemaField> schemaFields = sortSpec.getSchemaFields();
     SortField[] sortFields = sortSpec.getSort().getSort();
 
@@ -1334,7 +1339,7 @@ public class QueryComponent extends SearchComponent
       if(!rb.rsp.getReturnFields().wantsField(uniqueField.getName())) {
         sreq.params.add(CommonParams.FL, uniqueField.getName());
       }
-    
+
       ArrayList<String> ids = new ArrayList<>(shardDocs.size());
       for (ShardDoc shardDoc : shardDocs) {
         // TODO: depending on the type, we may need more tha a simple toString()?
@@ -1384,7 +1389,7 @@ public class QueryComponent extends SearchComponent
               nl.add("trace", trace.toString() );
             }
           }
-          
+
           continue;
         }
         SolrDocumentList docs = (SolrDocumentList) srsp.getSolrResponse().getResponse().get("response");
